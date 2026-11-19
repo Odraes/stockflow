@@ -1,110 +1,108 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# StockPilot
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+Café inventory management: ingredients, supplies, batches with expiry dates, suppliers, usage, wastage and a permanent audit trail, for a team of administrators, managers and staff.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+Built with **Next.js 16** (App Router, Cache Components), **TypeScript**, **Tailwind CSS**, **Supabase** (Postgres, Auth, Row Level Security) and deployed on **Vercel**.
 
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+- **Dashboard**: stock totals per unit, low / out-of-stock alerts, expiring batches, recent transactions and wastage.
+- **Inventory**: search, filter, sort and paginate items, archive or restore them, item details with batches and history.
+- **Stock operations**: Stock In (batches with cost and expiry), Usage (first-expired-first-out), Wastage (with reasons, per batch), Adjustments (physical counts).
+- **Transactions**: an append-only audit log with filters and CSV export.
+- **Suppliers and categories**: supplier contacts and purchase history.
+- **Reports**: inventory, low stock, expiring stock, movement summary, wastage by reason, supplier purchasing, all with CSV export.
+- **Users**: sign-ups need admin approval, roles are Administrator / Manager / Staff, and accounts can be disabled.
 
-## Demo
+## How it stays correct and secure
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+| Concern | Where it is enforced |
+|---|---|
+| Who can read or write what | Postgres **Row Level Security** and column grants (`supabase/migrations/…_rls_and_grants.sql`) |
+| Stock changes | Only through database functions (`receive_stock`, `record_usage`, `record_wastage`, `adjust_stock`) that check the role, **lock the item row** and write batches and movements in one transaction |
+| No negative stock, item total = sum of batches | Check constraints and a deferred consistency trigger |
+| Audit trail | `stock_movements` cannot be updated, deleted or truncated (trigger) |
+| Pages and Server Actions | `lib/auth.ts` (`requireActiveUser`, `requirePermission`); the database checks again |
+| Browser hardening | Security headers in `next.config.ts`; CSV exports are protected against formula injection |
 
-## Deploy to Vercel
+The Supabase **publishable** key is safe in the browser: RLS protects the data. No secret or service-role key is used anywhere in this app.
 
-Vercel deployment will guide you through creating a Supabase account and project.
+## Local setup
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+Requirements: Node.js 22+, a Supabase project.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
-
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
-
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
-
-## Clone and run locally
-
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
-
-2. Create a Next.js app using the Supabase Starter template npx command
-
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
-
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
-
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
-
-3. Use `cd` to change into the app's directory
-
-   ```bash
-   cd with-supabase-app
-   ```
-
-4. Rename `.env.example` to `.env.local` and update the following:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
+```bash
+npm install
+cp .env.example .env.local   # then fill in the values
+npm run dev                  # http://localhost:3000
 ```
 
-> [!NOTE]
-> This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-> Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-> See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+### Environment variables
 
-Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+| Variable | Required | Where to find it |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | Supabase → Project Settings → API Keys (publishable key) |
+| `CAFE_TIME_ZONE` | recommended | An IANA zone such as `Asia/Manila`. Used to display dates and for date filters. Defaults to the server zone (UTC on Vercel). |
 
-5. You can now run the Next.js local development server:
+### Database
 
-   ```bash
-   npm run dev
+Apply the migrations in `supabase/migrations/` in order (Supabase SQL Editor, Supabase CLI `supabase db push`, or the Supabase MCP). Then create the first administrator:
+
+1. Sign up in the app.
+2. In the Supabase **SQL Editor** run:
+   ```sql
+   select public.bootstrap_admin('you@example.com');
    ```
+   This only works while no active administrator exists and cannot be called from the website.
+3. Further accounts sign up, then an administrator approves them under **User Management**.
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+### Supabase Auth settings
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+- **URL Configuration**: set the Site URL to your production URL and add `http://localhost:3000/**` and `https://<your-domain>/**` as Redirect URLs.
+- **Email templates** (recommended, so links work on any device):
+  - Confirm signup: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard`
+  - Reset password: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`
+- Enable **leaked password protection** (Authentication → Sign In / Providers → Email).
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+## Scripts
 
-## Feedback and issues
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build / server |
+| `npm run typecheck` | TypeScript |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (Vitest): validation, URL parsing, CSV safety, time zones, permissions |
+| `npm run check` | All three of the above |
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+**Database tests** live in `supabase/tests/database_tests.sql`: permissions, RLS, FEFO, locking guards, reports. Each `DO` block rolls itself back and ends with `ALL n TESTS PASSED`. Run one block at a time in the SQL Editor.
 
-## More Supabase examples
+## Project structure
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+```text
+app/
+  (app)/          signed-in pages: dashboard, inventory, categories, suppliers,
+                  stock-in, stock-usage, wastage, transactions, reports, users, account
+  auth/           login, sign-up, password reset, email confirmation
+  pending/        "waiting for approval" screen
+components/       UI by feature (layout, dashboard, inventory, stock, reports, ui/ …)
+lib/
+  auth.ts         who is signed in, plus permission guards (server only)
+  permissions.ts  role → permission table (mirrors the database rules)
+  data/           server-side queries per feature
+  actions/        Server Actions for stock operations
+  validations/    input validation and URL parsing
+  supabase/       browser, server and proxy clients
+supabase/
+  migrations/     schema, RLS, functions (applied in order)
+  tests/          database test suite
+tests/unit/       Vitest unit tests
+types/database.ts generated from the live schema
+```
+
+## Deployment (Vercel)
+
+1. Push to the `master` branch on GitHub; Vercel builds and deploys automatically.
+2. In Vercel → Project → Settings → Environment Variables, set the three variables above for **Production** (and Preview if you use it).
+3. Update the Supabase Auth Site URL and Redirect URLs to the Vercel domain.

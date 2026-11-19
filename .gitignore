@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local AI-assistant settings (may contain machine-specific permissions)
+.claude/settings.local.json
