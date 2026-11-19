@@ -14,3 +14,17 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZ
 export function formatDate(value: string): string {
   return dateFormat.format(new Date(`${value}T00:00:00Z`));
 }
+
+const moneyFormat = new Intl.NumberFormat("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Costs without a currency symbol until the café currency is configurable. */
+export function formatMoney(value: number): string {
+  return moneyFormat.format(value);
+}
+
+const unitCostFormat = new Intl.NumberFormat("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+/** Unit costs are per base unit (per ml, g or piece), so they need more decimals: 0.0012. */
+export function formatUnitCost(value: number): string {
+  return unitCostFormat.format(value);
+}

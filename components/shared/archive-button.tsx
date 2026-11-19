@@ -3,19 +3,26 @@
 import { useState, useTransition } from "react";
 import { Archive, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { setItemArchived } from "@/app/(app)/inventory/actions";
 import type { ActionResult } from "@/lib/db-errors";
 
-export function ArchiveButton({ itemId, itemName, archived }: { itemId: string; itemName: string; archived: boolean }) {
+type Props = {
+  /** Server Action with the record id already bound, e.g. setItemArchived.bind(null, id). */
+  action: (archived: boolean) => Promise<ActionResult>;
+  name: string;
+  archived: boolean;
+  /** Explains what archiving means for this kind of record. */
+  archiveHint: string;
+};
+
+/** Archive / restore with a confirmation prompt. Used for items and suppliers. */
+export function ArchiveButton({ action, name, archived, archiveHint }: Props) {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<ActionResult | null>(null);
 
   const onClick = () => {
-    const message = archived
-      ? `Restore "${itemName}" to the active inventory?`
-      : `Archive "${itemName}"? It will be hidden from the inventory, but its stock history is kept.`;
+    const message = archived ? `Restore "${name}"?` : `Archive "${name}"? ${archiveHint}`;
     if (!window.confirm(message)) return;
-    startTransition(async () => setResult(await setItemArchived(itemId, !archived)));
+    startTransition(async () => setResult(await action(!archived)));
   };
 
   return (

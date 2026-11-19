@@ -57,10 +57,10 @@ export async function updateSession(request: NextRequest) {
     return redirectTo(request, supabaseResponse, "/auth/login");
   }
 
-  // Already logged in? Skip the login/sign-up forms.
-  if (user && (path === "/auth/login" || path === "/auth/sign-up")) {
-    return redirectTo(request, supabaseResponse, "/dashboard");
-  }
+  // Note: "already signed in → skip the login form" is handled by the login
+  // and sign-up pages themselves (RedirectIfSignedIn), not here: Next.js hides
+  // its prefetch headers from the proxy, and redirecting background prefetches
+  // caused 404s.
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:

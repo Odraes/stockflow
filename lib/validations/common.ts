@@ -37,3 +37,12 @@ export function safeRedirectPath(value: string | null | undefined, fallback = "/
   }
   return value;
 }
+
+/**
+ * Clean free-text search before it goes into a PostgREST filter. The filter
+ * syntax uses , ( ) * % \ quotes and : as operators, so we remove them; the
+ * search can then never change the meaning of the filter itself.
+ */
+export function sanitizeSearch(value: string, maxLength = 80): string {
+  return value.replace(/[,()*%\\"':]/g, " ").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}

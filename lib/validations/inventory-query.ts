@@ -1,4 +1,4 @@
-import { isUuid } from "@/lib/validations/common";
+import { isUuid, sanitizeSearch } from "@/lib/validations/common";
 
 /**
  * Turns the URL's search params (?q=milk&status=low_stock&page=2) into a
@@ -35,9 +35,7 @@ export function parseInventoryQuery(params: RawParams): InventoryQuery {
   const category = first(params.category);
 
   return {
-    // PostgREST filter syntax uses , ( ) * % \ and quotes as operators. We
-    // strip them from free text so the search can't alter the filter itself.
-    q: first(params.q).replace(/[,()*%\\"':]/g, " ").trim().slice(0, 80),
+    q: sanitizeSearch(first(params.q)),
     category: isUuid(category) ? category : null,
     status: STATUS_FILTERS.includes(status) ? status : "all",
     sort: SORT_FIELDS.includes(sort) ? sort : "name",

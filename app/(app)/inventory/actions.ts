@@ -75,7 +75,7 @@ export async function updateItem(
   redirect(`/inventory/${itemId}?saved=updated`);
 }
 
-export async function setItemArchived(itemId: unknown, archived: unknown): Promise<ActionResult> {
+export async function setItemArchived(itemId: string, archived: unknown): Promise<ActionResult> {
   await requirePermission("inventory:manage");
   if (!isUuid(itemId) || typeof archived !== "boolean") return { ok: false, error: "Invalid request." };
 

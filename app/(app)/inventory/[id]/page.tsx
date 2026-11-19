@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ArrowLeft, CheckCircle2, Pencil } from "lucide-react";
-import { ArchiveButton } from "@/components/inventory/archive-button";
+import { ArchiveButton } from "@/components/shared/archive-button";
+import { setItemArchived } from "@/app/(app)/inventory/actions";
 import { ItemStatusBadges } from "@/components/inventory/item-status-badges";
 import { MovementTable } from "@/components/inventory/movement-table";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,16 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
   const details: [string, React.ReactNode][] = [
     ["SKU", <span key="sku" className="font-mono">{item.sku}</span>],
     ["Category", item.category?.name ?? "—"],
-    ["Preferred supplier", item.supplier?.name ?? "—"],
+    [
+      "Preferred supplier",
+      item.supplier && item.supplier_id && can(user.role, "suppliers:view") ? (
+        <Link key="supplier" href={`/suppliers/${item.supplier_id}`} className="underline-offset-4 hover:underline">
+          {item.supplier.name}
+        </Link>
+      ) : (
+        item.supplier?.name ?? "—"
+      ),
+    ],
     ["Base unit", UNIT_LABELS[item.unit]],
     ["Minimum stock", formatQuantity(item.min_stock, item.unit)],
     ["Storage location", item.location ?? "—"],
@@ -77,7 +87,12 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
                 <Pencil className="h-4 w-4" /> Edit
               </Link>
             </Button>
-            <ArchiveButton itemId={id} itemName={item.name} archived={!item.is_active} />
+            <ArchiveButton
+              action={setItemArchived.bind(null, id)}
+              name={item.name}
+              archived={!item.is_active}
+              archiveHint="It will be hidden from the inventory, but its stock history is kept."
+            />
           </div>
         )}
       </div>
