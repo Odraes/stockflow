@@ -5,7 +5,6 @@ import {
   ClipboardList,
   CupSoda,
   LayoutDashboard,
-  Settings,
   Tags,
   Trash2,
   Truck,
@@ -34,7 +33,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/transactions", label: "Transactions", icon: ClipboardList, permission: "transactions:view", available: true },
   { href: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view", available: true },
   { href: "/users", label: "User Management", icon: Users, permission: "users:manage", available: true },
-  { href: "/settings", label: "Settings", icon: Settings, permission: "settings:manage", available: false },
 ];
 
 /** Navigation entries this role may see (UI only — pages re-check on the server). */
