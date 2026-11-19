@@ -191,6 +191,13 @@ export type Database = {
             foreignKeyName: "stock_batches_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "item_stock_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_batches_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "items"
             referencedColumns: ["id"]
           },
@@ -264,6 +271,13 @@ export type Database = {
             foreignKeyName: "stock_movements_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false
+            referencedRelation: "item_stock_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
             referencedRelation: "items"
             referencedColumns: ["id"]
           },
@@ -324,7 +338,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      item_stock_overview: {
+        Row: {
+          category_id: string | null
+          category_name: string | null
+          created_at: string | null
+          expired_quantity: number | null
+          expiring_quantity: number | null
+          id: string | null
+          is_active: boolean | null
+          location: string | null
+          min_stock: number | null
+          name: string | null
+          next_expiration_date: string | null
+          quantity: number | null
+          sku: string | null
+          stock_status: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          unit: Database["public"]["Enums"]["stock_unit"] | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "items_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adjust_stock: {
@@ -398,6 +449,7 @@ export type Database = {
         Returns: boolean
       }
       is_active_user: { Args: never; Returns: boolean }
+      near_expiry_days: { Args: never; Returns: number }
       receive_stock: {
         Args: {
           p_batch_number?: string

@@ -7,6 +7,9 @@
 --   * success -> error message "ALL N TESTS PASSED"
 --   * failure -> error message "TEST FAILED: <name> ..."
 --
+-- The file holds several DO blocks. Each one ends with an error on purpose,
+-- so in the SQL Editor select and run ONE block at a time.
+--
 -- Users are simulated the same way Supabase does for API requests: switch to
 -- the `authenticated` (or `anon`) role and set the JWT claims so auth.uid()
 -- returns the test user's id.
@@ -411,3 +414,55 @@ begin
   raise exception 'ALL % TESTS PASSED (all test data rolled back)', v_passed;
 end
 $tests$;
+
+-- =============================================================================
+-- item_stock_overview view (migration 7). Also always rolled back.
+-- =============================================================================
+do $t$
+declare
+  c_mgr uuid := '00000000-0000-4000-a000-00000000c001';
+  c_pend uuid := '00000000-0000-4000-a000-00000000c002';
+  v_cat uuid; v_out uuid; v_low uuid; v_ok uuid; v_n int; r record; v_passed int := 0;
+begin
+  insert into auth.users (id, email, aud, role) values
+    (c_mgr, 'v-mgr@stockpilot.test', 'authenticated', 'authenticated'),
+    (c_pend, 'v-pend@stockpilot.test', 'authenticated', 'authenticated');
+  update public.profiles set role = 'manager', status = 'active' where id = c_mgr;
+  select id into v_cat from public.categories where name = 'Dairy Products';
+
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', c_mgr, 'role', 'authenticated')::text, true);
+
+  insert into public.items (name, sku, category_id, unit, min_stock) values ('V Out', 'V-OUT', v_cat, 'pcs', 5) returning id into v_out;
+  insert into public.items (name, sku, category_id, unit, min_stock) values ('V Low', 'V-LOW', v_cat, 'ml', 1000) returning id into v_low;
+  insert into public.items (name, sku, category_id, unit, min_stock) values ('V Ok', 'V-OK', v_cat, 'g', 100) returning id into v_ok;
+
+  perform public.receive_stock(v_low, 600, 'ml', p_expiration_date => current_date + 2);           -- expiring
+  perform public.receive_stock(v_low, 200, 'ml', p_received_at => now() - interval '9 days',
+                               p_expiration_date => current_date - 1);                              -- expired
+  perform public.receive_stock(v_ok, 5000, 'g', p_expiration_date => current_date + 30);
+
+  select * into r from public.item_stock_overview where id = v_out;
+  if r.stock_status <> 'out_of_stock' then raise exception 'FAIL out: %', r.stock_status; end if;
+  select * into r from public.item_stock_overview where id = v_low;
+  if r.stock_status <> 'low_stock' or r.quantity <> 800 or r.expired_quantity <> 200
+     or r.expiring_quantity <> 600 or r.next_expiration_date <> current_date + 2 or r.category_name <> 'Dairy Products' then
+    raise exception 'FAIL low: % % % % %', r.stock_status, r.quantity, r.expired_quantity, r.expiring_quantity, r.next_expiration_date; end if;
+  select * into r from public.item_stock_overview where id = v_ok;
+  if r.stock_status <> 'in_stock' or r.expiring_quantity <> 0 or r.expired_quantity <> 0 then
+    raise exception 'FAIL ok: % %', r.stock_status, r.expiring_quantity; end if;
+  v_passed := v_passed + 3;
+
+  -- RLS still applies through the view (security_invoker)
+  perform set_config('request.jwt.claims', json_build_object('sub', c_pend, 'role', 'authenticated')::text, true);
+  select count(*) into v_n from public.item_stock_overview;
+  if v_n <> 0 then raise exception 'FAIL: pending user sees % rows via view', v_n; end if;
+  perform set_config('role', 'anon', true);
+  begin
+    perform count(*) from public.item_stock_overview;
+    raise exception 'FAIL: anon can read the view';
+  exception when insufficient_privilege then null; end;
+  v_passed := v_passed + 2;
+
+  raise exception 'ALL % VIEW TESTS PASSED (rolled back)', v_passed;
+end $t$;
