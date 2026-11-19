@@ -1,9 +1,12 @@
+import { CAFE_TIME_ZONE } from "@/lib/timezone";
+
 const dateTimeFormat = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
   timeStyle: "short",
+  timeZone: CAFE_TIME_ZONE,
 });
 
-/** "19 Nov 2026, 13:10" — consistent date display across the app. */
+/** "19 Nov 2026, 13:10" in the café's time zone (see lib/timezone.ts). */
 export function formatDateTime(value: string | Date): string {
   return dateTimeFormat.format(typeof value === "string" ? new Date(value) : value);
 }

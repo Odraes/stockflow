@@ -170,7 +170,7 @@ export async function getItemMovements(itemId: string, limit = 15): Promise<Item
     reason: m.reason,
     note: m.note,
     occurredAt: m.occurred_at,
-    userName: m.user?.full_name ?? "Unknown user",
+    userName: m.user?.full_name ?? "Unnamed user",
   }));
 }
 

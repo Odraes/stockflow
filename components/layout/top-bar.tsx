@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -14,10 +15,10 @@ export function TopBar({ user }: { user: CurrentUser }) {
         <Brand />
       </div>
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        <div className="hidden text-right sm:block">
+        <Link href="/account" className="hidden rounded-md px-2 py-1 text-right hover:bg-accent sm:block" title="Your account">
           <p className="text-sm font-medium leading-tight">{user.fullName ?? user.email}</p>
-          {user.fullName && <p className="text-xs text-muted-foreground">{user.email}</p>}
-        </div>
+          <p className="text-xs text-muted-foreground">{user.fullName ? user.email : "Set your name →"}</p>
+        </Link>
         <Badge variant="secondary" className="hidden sm:inline-flex">
           {ROLE_LABELS[user.role]}
         </Badge>

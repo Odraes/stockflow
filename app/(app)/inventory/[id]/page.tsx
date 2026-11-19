@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeft, CheckCircle2, Pencil } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, CheckCircle2, CupSoda, Pencil, Scale, Trash2 } from "lucide-react";
 import { ArchiveButton } from "@/components/shared/archive-button";
 import { setItemArchived } from "@/app/(app)/inventory/actions";
 import { ItemStatusBadges } from "@/components/inventory/item-status-badges";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePermission } from "@/lib/auth";
 import { getItem, getItemBatches, getItemMovements, getItemStatus } from "@/lib/data/inventory";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { can } from "@/lib/permissions";
+import { can, type Permission } from "@/lib/permissions";
 import { formatQuantity, type StockUnit } from "@/lib/stock";
 import { isUuid } from "@/lib/validations/common";
 import { UNIT_LABELS } from "@/lib/validations/item";
@@ -34,6 +34,14 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
 
   const [status, batches] = await Promise.all([getItemStatus(id), getItemBatches(id)]);
   const canManage = can(user.role, "inventory:manage");
+  // Shortcuts to the stock forms with this item pre-selected (role-filtered).
+  const stockActions: { permission: Permission; href: string; label: string; icon: typeof Scale; active: boolean }[] = [
+    { permission: "stock:receive", href: `/stock-in?item=${id}`, label: "Receive stock", icon: ArrowDownToLine, active: item.is_active },
+    { permission: "stock:use", href: `/stock-usage?item=${id}`, label: "Record usage", icon: CupSoda, active: item.is_active },
+    { permission: "stock:waste", href: `/wastage?item=${id}`, label: "Report wastage", icon: Trash2, active: item.quantity > 0 },
+    { permission: "stock:adjust", href: `/inventory/${id}/adjust`, label: "Adjust stock", icon: Scale, active: true },
+  ];
+  const allowedStockActions = stockActions.filter((a) => a.active && can(user.role, a.permission));
   const saved = sp.saved === "created" ? "Item created." : sp.saved === "updated" ? "Changes saved." : null;
 
   const details: [string, React.ReactNode][] = [
@@ -81,7 +89,7 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
           )}
         </div>
         {canManage && (
-          <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-wrap items-start gap-2 sm:justify-end">
             <Button asChild variant="outline">
               <Link href={`/inventory/${id}/edit`}>
                 <Pencil className="h-4 w-4" /> Edit
@@ -96,6 +104,18 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
           </div>
         )}
       </div>
+
+      {allowedStockActions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {allowedStockActions.map(({ href, label, icon: Icon }) => (
+            <Button key={href} asChild variant="secondary" size="sm">
+              <Link href={href}>
+                <Icon className="h-4 w-4" /> {label}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
@@ -168,8 +188,11 @@ export default async function ItemDetailPage({ params, searchParams }: Props) {
       </Card>
 
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-base">Recent stock history</CardTitle>
+          <Link href={`/transactions?item=${id}`} className="text-sm text-muted-foreground hover:text-foreground">
+            View all
+          </Link>
         </CardHeader>
         <CardContent>
           <Suspense fallback={<div className="h-24 animate-pulse rounded-md bg-muted" />}>

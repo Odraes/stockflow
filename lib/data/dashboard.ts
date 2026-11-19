@@ -1,7 +1,8 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import { isStockStatus, type MovementType, type StockStatus, type StockUnit } from "@/lib/stock";
+import { listRecentOperations, type Movement } from "@/lib/data/stock";
+import { isStockStatus, type StockStatus, type StockUnit } from "@/lib/stock";
 
 /*
  * Dashboard queries. Everything runs with the signed-in user's session, so
@@ -25,16 +26,7 @@ export type DashboardItem = {
   nextExpirationDate: string | null;
 };
 
-export type DashboardMovement = {
-  operationId: string;
-  type: MovementType;
-  itemName: string;
-  unit: StockUnit;
-  quantityChange: number;
-  reason: string | null;
-  userName: string;
-  occurredAt: string;
-};
+export type DashboardMovement = Movement;
 
 export type DashboardData = {
   totalItems: number;
@@ -53,11 +45,8 @@ const UNIT_ORDER: StockUnit[] = ["g", "ml", "pcs"];
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient();
 
-  const movementColumns =
-    "operation_id, type, quantity_change, reason, occurred_at, created_at, item:items(name, unit), user:profiles(full_name)";
-
   // Independent queries run in parallel.
-  const [itemsRes, categoriesRes, movementsRes, wastageRes] = await Promise.all([
+  const [itemsRes, categoriesRes, recentMovements, recentWastage] = await Promise.all([
     supabase
       .from("item_stock_overview")
       .select(
@@ -66,16 +55,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       .eq("is_active", true)
       .order("name"),
     supabase.from("categories").select("id", { count: "exact", head: true }),
-    supabase.from("stock_movements").select(movementColumns).order("created_at", { ascending: false }).limit(30),
-    supabase
-      .from("stock_movements")
-      .select(movementColumns)
-      .eq("type", "wastage")
-      .order("created_at", { ascending: false })
-      .limit(20),
+    listRecentOperations({ limit: 8 }),
+    listRecentOperations({ type: "wastage", limit: 5 }),
   ]);
 
-  const firstError = itemsRes.error ?? categoriesRes.error ?? movementsRes.error ?? wastageRes.error;
+  const firstError = itemsRes.error ?? categoriesRes.error;
   if (firstError) {
     console.error("Dashboard query failed:", firstError);
     throw new Error("Could not load the dashboard. Please refresh the page.");
@@ -115,43 +99,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       .filter((i) => i.expiringQuantity > 0)
       .sort((a, b) => (a.nextExpirationDate ?? "").localeCompare(b.nextExpirationDate ?? "")),
     expired: items.filter((i) => i.expiredQuantity > 0),
-    recentMovements: groupByOperation(movementsRes.data ?? []).slice(0, 8),
-    recentWastage: groupByOperation(wastageRes.data ?? []).slice(0, 5),
+    recentMovements,
+    recentWastage,
   };
-}
-
-type MovementRow = {
-  operation_id: string;
-  type: MovementType;
-  quantity_change: number;
-  reason: string | null;
-  occurred_at: string;
-  item: { name: string; unit: StockUnit } | null;
-  user: { full_name: string | null } | null;
-};
-
-/**
- * One usage that drew from two batches is stored as two rows sharing an
- * operation_id. For a human-readable feed we merge them back into one line.
- */
-function groupByOperation(rows: MovementRow[]): DashboardMovement[] {
-  const byOperation = new Map<string, DashboardMovement>();
-  for (const row of rows) {
-    const existing = byOperation.get(row.operation_id);
-    if (existing) {
-      existing.quantityChange += row.quantity_change;
-      continue;
-    }
-    byOperation.set(row.operation_id, {
-      operationId: row.operation_id,
-      type: row.type,
-      itemName: row.item?.name ?? "Unknown item",
-      unit: row.item?.unit ?? "pcs",
-      quantityChange: row.quantity_change,
-      reason: row.reason,
-      userName: row.user?.full_name ?? "Unknown user",
-      occurredAt: row.occurred_at,
-    });
-  }
-  return [...byOperation.values()];
 }

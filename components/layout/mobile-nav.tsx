@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { Menu, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Brand } from "@/components/layout/brand";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -52,6 +53,13 @@ export function MobileNav({ role }: { role: AppRole }) {
                 </Button>
               </div>
               <SidebarNav role={role} onNavigate={() => setOpen(false)} />
+              <Link
+                href="/account"
+                onClick={() => setOpen(false)}
+                className="mt-auto flex items-center gap-3 rounded-md border-t px-3 pt-4 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <UserRound className="h-4 w-4" aria-hidden /> Your account
+              </Link>
             </div>
           </div>,
           document.body,
