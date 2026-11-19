@@ -25,8 +25,8 @@ export type NavItem = {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard:view", available: true },
-  { href: "/inventory", label: "Inventory", icon: Boxes, permission: "inventory:view", available: false },
-  { href: "/categories", label: "Categories", icon: Tags, permission: "categories:manage", available: false },
+  { href: "/inventory", label: "Inventory", icon: Boxes, permission: "inventory:view", available: true },
+  { href: "/categories", label: "Categories", icon: Tags, permission: "categories:manage", available: true },
   { href: "/suppliers", label: "Suppliers", icon: Truck, permission: "suppliers:view", available: false },
   { href: "/stock-in", label: "Stock In", icon: ArrowDownToLine, permission: "stock:receive", available: false },
   { href: "/stock-usage", label: "Stock Usage", icon: CupSoda, permission: "stock:use", available: false },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { AlertTriangle, Boxes, CalendarClock, PackageX, Scale, Tags } from "lucide-react";
 import { ExpiryList } from "@/components/dashboard/expiry-list";
@@ -50,9 +51,14 @@ async function DashboardContent({ user }: { user: CurrentUser }) {
           <p className="font-medium">Your inventory is empty</p>
           <p className="mt-1 text-muted-foreground">
             {canManage
-              ? "Inventory items can be added once the Inventory page is available (Phase 5). The statistics below will fill in automatically."
+              ? "Add your ingredients and supplies, and the statistics below will fill in automatically."
               : "A manager or administrator needs to add inventory items first."}
           </p>
+          {canManage && (
+            <Link href="/inventory/new" className="mt-3 inline-block font-medium text-primary underline-offset-4 hover:underline">
+              Add your first item →
+            </Link>
+          )}
         </div>
       )}
 
