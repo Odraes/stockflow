@@ -466,3 +466,79 @@ begin
 
   raise exception 'ALL % VIEW TESTS PASSED (rolled back)', v_passed;
 end $t$;
+
+-- =============================================================================
+-- Report functions (migration 9). Also always rolled back.
+-- =============================================================================
+do $t$
+declare
+  c_mgr uuid := '00000000-0000-4000-a000-00000000d001';
+  c_pend uuid := '00000000-0000-4000-a000-00000000d002';
+  v_dairy uuid; v_pack uuid; v_sup uuid; v_milk uuid; v_cups uuid; r record; v_n int; v_passed int := 0;
+  v_from timestamptz := now() - interval '30 days';
+  v_to timestamptz := now() + interval '1 hour';
+begin
+  insert into auth.users (id, email, aud, role) values
+    (c_mgr, 'r-mgr@stockpilot.test', 'authenticated', 'authenticated'),
+    (c_pend, 'r-pend@stockpilot.test', 'authenticated', 'authenticated');
+  update public.profiles set role = 'manager', status = 'active' where id = c_mgr;
+  select id into v_dairy from public.categories where name = 'Dairy Products';
+  select id into v_pack from public.categories where name = 'Packaging';
+
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', c_mgr, 'role', 'authenticated')::text, true);
+
+  insert into public.suppliers (name) values ('R Supplier') returning id into v_sup;
+  insert into public.items (name, sku, category_id, unit) values ('R Milk', 'R-MILK', v_dairy, 'ml') returning id into v_milk;
+  insert into public.items (name, sku, category_id, unit) values ('R Cups', 'R-CUPS', v_pack, 'pcs') returning id into v_cups;
+
+  perform public.receive_stock(v_milk, 200, 'ml', v_sup, p_unit_cost => 1, p_received_at => now() - interval '40 days'); -- outside period
+  perform public.receive_stock(v_milk, 1000, 'ml', v_sup, p_total_cost => 1.20);
+  perform public.receive_stock(v_milk, 500, 'ml');                                   -- no supplier, no cost
+  perform public.receive_stock(v_cups, 100, 'pcs', v_sup, p_unit_cost => 0.05);
+  perform public.record_usage(v_milk, 300, 'ml');
+  perform public.record_wastage(v_milk, 100, 'ml', 'Expired');
+  perform public.record_wastage(v_cups, 5, 'pcs', 'Expired');
+  perform public.record_wastage(v_cups, 2, 'pcs', 'Damaged packaging');
+  perform public.adjust_stock(v_milk, 1200, 'ml', 'Count');   -- 1300 -> 1200 = -100
+
+  select * into r from public.report_movement_summary(v_from, v_to) where item_id = v_milk;
+  if r.received <> 1500 or r.used <> 300 or r.wasted <> 100 or r.adjusted <> -100 or r.net_change <> 1000
+     or r.purchase_cost <> 1.20 or r.uncosted_receipts <> 1 then
+    raise exception 'FAIL milk summary: % % % % % % %', r.received, r.used, r.wasted, r.adjusted, r.net_change, r.purchase_cost, r.uncosted_receipts; end if;
+  select * into r from public.report_movement_summary(v_from, v_to) where item_id = v_cups;
+  if r.received <> 100 or r.wasted <> 7 or r.net_change <> 93 or r.purchase_cost <> 5.00 then
+    raise exception 'FAIL cups summary: % % % %', r.received, r.wasted, r.net_change, r.purchase_cost; end if;
+  select count(*) into v_n from public.report_movement_summary(v_from, v_to, v_pack) where item_id in (v_milk, v_cups);
+  if v_n <> 1 then raise exception 'FAIL category filter (%)', v_n; end if;
+  select received into r from public.report_movement_summary(now() - interval '50 days', v_to) where item_id = v_milk;
+  if r.received <> 1700 then raise exception 'FAIL wider period should include backdated delivery'; end if;
+  v_passed := v_passed + 4;
+
+  if (select string_agg(w.reason || ':' || w.unit || ':' || w.quantity::int, ' | ')
+        from public.report_wastage_by_reason(v_from, v_to) w) <> 'Expired:ml:100 | Expired:pcs:5 | Damaged packaging:pcs:2' then
+    raise exception 'FAIL wastage by reason'; end if;
+  v_passed := v_passed + 1;
+
+  select * into r from public.report_supplier_purchases(v_from, v_to) where supplier_id = v_sup;
+  if r.deliveries <> 2 or r.distinct_items <> 2 or r.total_cost <> 6.20 or r.uncosted_deliveries <> 0 then
+    raise exception 'FAIL supplier row'; end if;
+  select * into r from public.report_supplier_purchases(v_from, v_to) where supplier_id is null;
+  if r.supplier_name <> '(no supplier recorded)' or r.deliveries <> 1 or r.total_cost is not null or r.uncosted_deliveries <> 1 then
+    raise exception 'FAIL no-supplier row'; end if;
+  v_passed := v_passed + 2;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', c_pend, 'role', 'authenticated')::text, true);
+  select count(*) into v_n from public.report_movement_summary(v_from, v_to);
+  if v_n <> 0 then raise exception 'FAIL pending user sees summary rows'; end if;
+  select count(*) into v_n from public.report_supplier_purchases(v_from, v_to);
+  if v_n <> 0 then raise exception 'FAIL pending user sees supplier rows'; end if;
+  perform set_config('role', 'anon', true);
+  begin
+    perform public.report_wastage_by_reason(v_from, v_to);
+    raise exception 'FAIL anon can call report';
+  exception when insufficient_privilege then null; end;
+  v_passed := v_passed + 3;
+
+  raise exception 'ALL % REPORT TESTS PASSED (rolled back)', v_passed;
+end $t$;

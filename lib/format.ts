@@ -31,3 +31,10 @@ const unitCostFormat = new Intl.NumberFormat("en-GB", { minimumFractionDigits: 2
 export function formatUnitCost(value: number): string {
   return unitCostFormat.format(value);
 }
+
+const sortableFormat = new Intl.DateTimeFormat("sv-SE", { dateStyle: "short", timeStyle: "short", timeZone: CAFE_TIME_ZONE });
+
+/** "2026-11-19 13:10" in the café time zone — sorts correctly in spreadsheets (CSV exports). */
+export function formatDateTimeSortable(value: string | Date): string {
+  return sortableFormat.format(typeof value === "string" ? new Date(value) : value);
+}

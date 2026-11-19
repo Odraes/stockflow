@@ -32,7 +32,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/stock-usage", label: "Stock Usage", icon: CupSoda, permission: "stock:use", available: true },
   { href: "/wastage", label: "Wastage", icon: Trash2, permission: "stock:waste", available: true },
   { href: "/transactions", label: "Transactions", icon: ClipboardList, permission: "transactions:view", available: true },
-  { href: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view", available: false },
+  { href: "/reports", label: "Reports", icon: BarChart3, permission: "reports:view", available: true },
   { href: "/users", label: "User Management", icon: Users, permission: "users:manage", available: true },
   { href: "/settings", label: "Settings", icon: Settings, permission: "settings:manage", available: false },
 ];

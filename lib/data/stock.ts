@@ -223,3 +223,31 @@ export async function listMovements(query: MovementQuery): Promise<{ rows: Movem
   }
   return { rows: ((data ?? []) as MovementRow[]).map(toMovement), total: count ?? 0 };
 }
+
+/**
+ * Every movement matching the filters, for CSV export. Supabase returns at
+ * most 1000 rows per request, so we read in chunks (up to `cap` rows).
+ */
+export async function listAllMovements(query: Omit<MovementQuery, "page">, cap = 50_000) {
+  const supabase = await createClient();
+  const rows: Movement[] = [];
+  for (let from = 0; from < cap; from += 1000) {
+    let request = supabase.from("stock_movements").select(MOVEMENT_COLUMNS);
+    if (query.type) request = request.eq("type", query.type);
+    if (query.itemId) request = request.eq("item_id", query.itemId);
+    if (query.from) request = request.gte("occurred_at", startOfCafeDay(query.from).toISOString());
+    if (query.to) request = request.lt("occurred_at", startOfNextCafeDay(query.to).toISOString());
+    const { data, error } = await request
+      .order("occurred_at", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + 999);
+    if (error) {
+      console.error("listAllMovements failed:", error);
+      throw new Error("Could not export transactions.");
+    }
+    rows.push(...((data ?? []) as MovementRow[]).map(toMovement));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
+}

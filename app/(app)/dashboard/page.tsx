@@ -43,6 +43,12 @@ async function DashboardContent({ user }: { user: CurrentUser }) {
   const data = await getDashboardData();
   const alerts = [...data.outOfStock, ...data.lowStock];
   const canManage = can(user.role, "inventory:manage");
+  const reportLink = (report: string) =>
+    can(user.role, "reports:view") ? (
+      <Link href={`/reports?report=${report}`} className="text-sm text-muted-foreground hover:text-foreground">
+        Full report
+      </Link>
+    ) : undefined;
 
   return (
     <div className="space-y-6">
@@ -104,11 +110,12 @@ async function DashboardContent({ user }: { user: CurrentUser }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Stock alerts" isEmpty={alerts.length === 0} empty="Everything is above its minimum level.">
+        <Panel title="Stock alerts" action={reportLink("low-stock")} isEmpty={alerts.length === 0} empty="Everything is above its minimum level.">
           <StockAlertList items={alerts} />
         </Panel>
         <Panel
           title="Expiration watch"
+          action={reportLink("expiring")}
           isEmpty={data.expired.length + data.expiring.length === 0}
           empty={`Nothing is expired or expiring in the next ${NEAR_EXPIRY_DAYS} days.`}
         >
@@ -116,6 +123,11 @@ async function DashboardContent({ user }: { user: CurrentUser }) {
         </Panel>
         <Panel
           title="Recent transactions"
+          action={
+            <Link href="/transactions" className="text-sm text-muted-foreground hover:text-foreground">
+              View all
+            </Link>
+          }
           isEmpty={data.recentMovements.length === 0}
           empty="No stock movements recorded yet."
         >

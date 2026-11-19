@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Form from "next/form";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,13 @@ async function Results({ searchParams }: { searchParams: SearchParams }) {
           {filtered && (
             <Button asChild variant="ghost">
               <Link href="/transactions">Clear</Link>
+            </Button>
+          )}
+          {total > 0 && (
+            <Button asChild variant="outline">
+              <a href={`/transactions/export${movementsHref(query, { page: 1 }).replace("/transactions", "")}`} download>
+                <Download className="h-4 w-4" /> CSV
+              </a>
             </Button>
           )}
         </div>

@@ -551,6 +551,45 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      report_movement_summary: {
+        Args: { p_category_id?: string; p_from: string; p_to: string }
+        Returns: {
+          adjusted: number
+          category_name: string
+          item_id: string
+          item_name: string
+          net_change: number
+          purchase_cost: number
+          received: number
+          sku: string
+          uncosted_receipts: number
+          unit: Database["public"]["Enums"]["stock_unit"]
+          used: number
+          wasted: number
+        }[]
+      }
+      report_supplier_purchases: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          deliveries: number
+          distinct_items: number
+          last_delivery: string
+          supplier_id: string
+          supplier_name: string
+          total_cost: number
+          uncosted_deliveries: number
+        }[]
+      }
+      report_wastage_by_reason: {
+        Args: { p_category_id?: string; p_from: string; p_to: string }
+        Returns: {
+          events: number
+          items: number
+          quantity: number
+          reason: string
+          unit: Database["public"]["Enums"]["stock_unit"]
+        }[]
+      }
       set_user_role: {
         Args: {
           p_role: Database["public"]["Enums"]["app_role"]
