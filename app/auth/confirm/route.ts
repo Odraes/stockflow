@@ -25,6 +25,16 @@ export async function GET(request: NextRequest) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) redirect(next);
+    // The link was opened in a different browser/device than the one that
+    // started the flow, so the PKCE verifier cookie isn't here. Supabase has
+    // already verified the email by this point; only the auto-login failed.
+    if (error.code === "pkce_code_verifier_not_found") {
+      redirect(
+        next === "/auth/update-password"
+          ? "/auth/forgot-password?notice=reset-other-browser"
+          : "/auth/login?notice=email-confirmed",
+      );
+    }
     errorMessage = error.message;
   } else if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
