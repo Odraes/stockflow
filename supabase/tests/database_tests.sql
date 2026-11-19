@@ -41,19 +41,19 @@ begin
     -- tries to self-assign admin through sign-up metadata:
     (c_staff,   't-staff@stockpilot.test',   'authenticated', 'authenticated', '{"full_name":"Test Staff","role":"admin"}');
 
-  -- T: profile trigger always assigns staff, ignores metadata role
+  -- T: profile trigger always assigns staff + pending, ignores metadata role
   select count(*) into v_n from public.profiles
-   where id in (c_admin, c_manager, c_staff) and role = 'staff';
-  if v_n <> 3 then raise exception 'TEST FAILED: new users default to staff (got % staff)', v_n; end if;
+   where id in (c_admin, c_manager, c_staff) and role = 'staff' and status = 'pending';
+  if v_n <> 3 then raise exception 'TEST FAILED: new users default to pending staff (got %)', v_n; end if;
   v_passed := v_passed + 1;
 
   -- Demote any pre-existing admins inside this rolled-back transaction so
   -- bootstrap_admin can be tested regardless of the real project state.
   update public.profiles set role = 'staff' where role = 'admin';
 
-  -- T: bootstrap_admin promotes the first admin, then refuses
+  -- T: bootstrap_admin promotes + activates the first admin, then refuses
   perform public.bootstrap_admin('T-Admin@StockPilot.test');
-  if (select role from public.profiles where id = c_admin) <> 'admin' then
+  if (select role::text || '/' || status::text from public.profiles where id = c_admin) <> 'admin/active' then
     raise exception 'TEST FAILED: bootstrap_admin'; end if;
   begin
     perform public.bootstrap_admin('t-manager@stockpilot.test');
@@ -64,6 +64,44 @@ begin
   update public.profiles set role = 'manager' where id = c_manager;
   select id into v_cat from public.categories where name = 'Dairy Products';
   select id into v_cat_unused from public.categories where name = 'Cleaning Supplies';
+
+  -- ------------------------------------------------- pending (unapproved) ---
+  perform set_config('role', 'authenticated', true);
+  perform set_config('request.jwt.claims', json_build_object('sub', c_staff, 'role', 'authenticated')::text, true);
+
+  select count(*) into v_n from public.categories;
+  if v_n <> 0 then raise exception 'TEST FAILED: pending user can read categories (%)', v_n; end if;
+  select count(*) into v_n from public.profiles;
+  if v_n <> 1 then raise exception 'TEST FAILED: pending user sees only own profile (%)', v_n; end if;
+  begin
+    perform public.record_usage(gen_random_uuid(), 1, 'ml');
+    raise exception 'TEST FAILED: pending user can record usage';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.admin_list_users();
+    raise exception 'TEST FAILED: non-admin listed users';
+  exception when insufficient_privilege then null; end;
+  v_passed := v_passed + 4;
+
+  -- --------------------------------------------------------- approvals ---
+  perform set_config('request.jwt.claims', json_build_object('sub', c_admin, 'role', 'authenticated')::text, true);
+  perform public.set_user_status(c_manager, 'active');
+  select count(*) into v_n from public.admin_list_users() u
+   where u.email like 't-%@stockpilot.test';
+  if v_n <> 3 then raise exception 'TEST FAILED: admin_list_users (%)', v_n; end if;
+  begin perform public.set_user_status(c_admin, 'disabled');
+    raise exception 'TEST FAILED: admin changed own status';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', c_manager, 'role', 'authenticated')::text, true);
+  begin perform public.set_user_status(c_staff, 'active');
+    raise exception 'TEST FAILED: manager approved a user';
+  exception when insufficient_privilege then null; end;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', c_admin, 'role', 'authenticated')::text, true);
+  perform public.set_user_status(c_staff, 'active');
+  v_passed := v_passed + 4;
+  perform set_config('role', 'postgres', true);
 
   -- ------------------------------------------------------------ anonymous ---
   perform set_config('role', 'anon', true);
@@ -321,6 +359,16 @@ begin
     raise exception 'TEST FAILED: admin set role'; end if;
   begin perform public.set_user_role(c_admin, 'staff');
     raise exception 'TEST FAILED: admin changed own role';
+  exception when insufficient_privilege then null; end;
+  v_passed := v_passed + 2;
+
+  -- disabling locks a user out immediately
+  perform public.set_user_status(c_staff, 'disabled');
+  perform set_config('request.jwt.claims', json_build_object('sub', c_staff, 'role', 'authenticated')::text, true);
+  select count(*) into v_n from public.items;
+  if v_n <> 0 then raise exception 'TEST FAILED: disabled user can read items'; end if;
+  begin perform public.record_wastage(v_item, 1, 'ml', 'x');
+    raise exception 'TEST FAILED: disabled user recorded wastage';
   exception when insufficient_privilege then null; end;
   v_passed := v_passed + 2;
 

@@ -8,7 +8,7 @@ import {
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+    <div className="flex w-full justify-center">
       <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
           <Card>
@@ -20,8 +20,9 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to
-                confirm your account before signing in.
+                Please confirm your email using the link we sent you. After
+                that, an administrator needs to approve your account before you
+                can use StockPilot.
               </p>
             </CardContent>
           </Card>

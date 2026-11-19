@@ -1,30 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
+import { safeRedirectPath } from "@/lib/validations/common";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { type NextRequest } from "next/server";
 
+/**
+ * Landing route for links in Supabase emails (sign-up confirmation, password
+ * reset). Supports both link styles Supabase can send:
+ *   - ?code=...                       (PKCE, Supabase's default templates)
+ *   - ?token_hash=...&type=...        (custom email templates)
+ *
+ * `next` is only followed if it is a path on this site (no open redirects).
+ */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const token_hash = searchParams.get("token_hash");
+  const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = searchParams.get("next") ?? "/";
+  const next = safeRedirectPath(searchParams.get("next"));
 
-  if (token_hash && type) {
-    const supabase = await createClient();
+  const supabase = await createClient();
+  let errorMessage = "The link is invalid or incomplete.";
 
-    const { error } = await supabase.auth.verifyOtp({
-      type,
-      token_hash,
-    });
-    if (!error) {
-      // redirect user to specified redirect URL or root of app
-      redirect(next);
-    } else {
-      // redirect the user to an error page with some instructions
-      redirect(`/auth/error?error=${error?.message}`);
-    }
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) redirect(next);
+    errorMessage = error.message;
+  } else if (tokenHash && type) {
+    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+    if (!error) redirect(next);
+    errorMessage = error.message;
   }
 
-  // redirect the user to an error page with some instructions
-  redirect(`/auth/error?error=No token hash or type`);
+  redirect(`/auth/error?error=${encodeURIComponent(errorMessage)}`);
 }

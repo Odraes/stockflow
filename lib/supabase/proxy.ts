@@ -48,16 +48,18 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    return NextResponse.redirect(url);
+  const path = request.nextUrl.pathname;
+  const isAuthRoute = path === "/auth" || path.startsWith("/auth/");
+
+  // First line of defence: logged-out visitors only reach the /auth pages.
+  // (Pages and the database check again — the proxy is not the only guard.)
+  if (!user && !isAuthRoute) {
+    return redirectTo(request, supabaseResponse, "/auth/login");
+  }
+
+  // Already logged in? Skip the login/sign-up forms.
+  if (user && (path === "/auth/login" || path === "/auth/sign-up")) {
+    return redirectTo(request, supabaseResponse, "/dashboard");
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
@@ -74,4 +76,17 @@ export async function updateSession(request: NextRequest) {
   // of sync and terminate the user's session prematurely!
 
   return supabaseResponse;
+}
+
+/**
+ * Redirect while keeping any refreshed auth cookies that Supabase just set on
+ * `supabaseResponse` (see the IMPORTANT note above).
+ */
+function redirectTo(request: NextRequest, supabaseResponse: NextResponse, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  const redirect = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
 }

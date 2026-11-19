@@ -118,6 +118,7 @@ export type Database = {
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["account_status"]
           updated_at: string
         }
         Insert: {
@@ -125,6 +126,7 @@ export type Database = {
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }
         Update: {
@@ -132,6 +134,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["account_status"]
           updated_at?: string
         }
         Relationships: []
@@ -356,6 +359,19 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      admin_list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          email_confirmed_at: string
+          full_name: string
+          id: string
+          last_sign_in_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["account_status"]
+        }[]
+      }
       bootstrap_admin: {
         Args: { p_email: string }
         Returns: {
@@ -363,6 +379,7 @@ export type Database = {
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["account_status"]
           updated_at: string
         }
         SetofOptions: {
@@ -380,6 +397,7 @@ export type Database = {
         Args: { allowed: Database["public"]["Enums"]["app_role"][] }
         Returns: boolean
       }
+      is_active_user: { Args: never; Returns: boolean }
       receive_stock: {
         Args: {
           p_batch_number?: string
@@ -491,6 +509,27 @@ export type Database = {
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["account_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_user_status: {
+        Args: {
+          p_status: Database["public"]["Enums"]["account_status"]
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          full_name: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["account_status"]
           updated_at: string
         }
         SetofOptions: {
@@ -502,6 +541,7 @@ export type Database = {
       }
     }
     Enums: {
+      account_status: "pending" | "active" | "disabled"
       app_role: "admin" | "manager" | "staff"
       movement_type: "receive" | "usage" | "wastage" | "adjustment"
       stock_unit: "g" | "ml" | "pcs"
@@ -632,6 +672,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: ["pending", "active", "disabled"],
       app_role: ["admin", "manager", "staff"],
       movement_type: ["receive", "usage", "wastage", "adjustment"],
       stock_unit: ["g", "ml", "pcs"],
